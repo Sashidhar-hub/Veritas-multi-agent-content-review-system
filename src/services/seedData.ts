@@ -1,0 +1,1128 @@
+import {
+  AcademicReview,
+  AgentStageState,
+  KnowledgeDocument,
+  NotificationItem,
+  PublicationItem,
+  TavilySource,
+  UserProfile,
+} from '../types/veritas';
+
+export const DEFAULT_USER: UserProfile = {
+  id: 'usr-01',
+  name: 'Dr. Elena Vance',
+  email: 'e.vance@veritas-academic.edu',
+  role: 'Reviewer',
+  institution: 'Institute for Computational & Natural Sciences',
+  department: 'Molecular Biophysics & Academic Integrity',
+  initials: 'EV',
+};
+
+export function createInitialAgents(): AgentStageState[] {
+  return [
+    {
+      key: 'analyze',
+      order: 1,
+      name: 'Question Analysis',
+      shortLabel: 'Analyze',
+      description:
+        'Understands the science question, extracts key concepts and breaks the draft explanation into individual claims.',
+      status: 'Pending',
+    },
+    {
+      key: 'retrieve',
+      order: 2,
+      name: 'RAG Retrieval',
+      shortLabel: 'Retrieve',
+      description:
+        'Retrieves relevant passages from faculty-uploaded academic reference PDFs.',
+      status: 'Pending',
+    },
+    {
+      key: 'verify',
+      order: 3,
+      name: 'Fact Verification',
+      shortLabel: 'Verify',
+      description:
+        'Compares individual claims against retrieved evidence and identifies incorrect or unsupported statements.',
+      status: 'Pending',
+    },
+    {
+      key: 'review',
+      order: 4,
+      name: 'Content Review',
+      shortLabel: 'Review',
+      description:
+        'Checks scientific accuracy, grammar, clarity and completeness.',
+      status: 'Pending',
+    },
+    {
+      key: 'correct',
+      order: 5,
+      name: 'Correction',
+      shortLabel: 'Correct',
+      description:
+        'Generates an improved explanation and detailed correction notes while preserving the original answer.',
+      status: 'Pending',
+    },
+  ];
+}
+
+export const SEED_DOCUMENTS: KnowledgeDocument[] = [
+  {
+    id: 'doc-101',
+    filename: 'Lehninger_Principles_of_Biochemistry_8th_Ed_Ch14.pdf',
+    fileSizeBytes: 4820410,
+    fileType: 'Textbook',
+    uploadedAt: '2026-11-20T09:15:00Z',
+    uploadedBy: 'Dr. Elena Vance',
+    status: 'Ready',
+    pageCount: 46,
+    chunkCount: 184,
+    subject: 'Biology',
+  },
+  {
+    id: 'doc-102',
+    filename: 'Griffiths_Introduction_to_Quantum_Mechanics_3rd_Ed.pdf',
+    fileSizeBytes: 6391200,
+    fileType: 'Textbook',
+    uploadedAt: '2026-11-21T14:30:00Z',
+    uploadedBy: 'Prof. Marcus Chen',
+    status: 'Ready',
+    pageCount: 72,
+    chunkCount: 265,
+    subject: 'Physics',
+  },
+  {
+    id: 'doc-103',
+    filename: 'Atkins_Physical_Chemistry_Thermodynamics_Notes.pdf',
+    fileSizeBytes: 2145900,
+    fileType: 'Lecture Notes',
+    uploadedAt: '2026-11-23T11:05:00Z',
+    uploadedBy: 'Dr. Priya Nair',
+    status: 'Ready',
+    pageCount: 28,
+    chunkCount: 112,
+    subject: 'Chemistry',
+  },
+  {
+    id: 'doc-104',
+    filename: 'IPCC_AR6_Carbon_Cycle_Feedback_Synthesis.pdf',
+    fileSizeBytes: 3580120,
+    fileType: 'Research Paper',
+    uploadedAt: '2026-11-24T16:40:00Z',
+    uploadedBy: 'Dr. Elena Vance',
+    status: 'Indexed',
+    pageCount: 34,
+    chunkCount: 140,
+    subject: 'Environmental Science',
+  },
+  {
+    id: 'doc-105',
+    filename: 'Cormen_CLRS_Graph_Algorithms_Shortest_Paths.pdf',
+    fileSizeBytes: 1940200,
+    fileType: 'Reference PDF',
+    uploadedAt: '2026-11-25T06:20:00Z',
+    uploadedBy: 'Prof. Marcus Chen',
+    status: 'Text Extracted',
+    pageCount: 22,
+    chunkCount: 88,
+    subject: 'Computer Science',
+  },
+];
+
+export const SEED_TAVILY_SOURCES: TavilySource[] = [
+  {
+    id: 'tav-01',
+    domain: 'nature.com',
+    title: 'ATP Synthase Rotational Catalysis and Proton Motive Force',
+    url: 'https://www.nature.com/articles/s41580-023-00612-x',
+    snippet:
+      'Oxidative phosphorylation couples electron transport to proton translocation across the inner mitochondrial membrane, yielding ~30–32 ATP per glucose molecule in eukaryotic cells.',
+    retrievedAt: '2026-11-25T06:45:00Z',
+    usedInReviewId: 'REV-2026-1040',
+    trustTier: 'Peer-Reviewed',
+  },
+  {
+    id: 'tav-02',
+    domain: 'physics.aps.org',
+    title: 'Bell Inequalities and Non-Local Quantum Entanglement',
+    url: 'https://physics.aps.org/articles/v15/150',
+    snippet:
+      'Quantum entanglement produces correlations stronger than local hidden-variable bounds, yet no-communication theorem forbids superluminal information transfer.',
+    retrievedAt: '2026-11-25T07:12:00Z',
+    usedInReviewId: 'REV-2026-1042',
+    trustTier: 'Peer-Reviewed',
+  },
+  {
+    id: 'tav-03',
+    domain: 'ocw.mit.edu',
+    title: 'Thermodynamics & Kinetics: Gibbs Free Energy and Spontaneity',
+    url: 'https://ocw.mit.edu/courses/5-60-thermodynamics-kinetics',
+    snippet:
+      'A process at constant temperature and pressure is spontaneous when ΔG = ΔH - TΔS < 0, regardless of activation energy barrier height.',
+    retrievedAt: '2026-11-24T15:10:00Z',
+    usedInReviewId: 'REV-2026-1038',
+    trustTier: 'Academic Institution',
+  },
+];
+
+export const SEED_REVIEWS: AcademicReview[] = [
+  {
+    id: 'REV-2026-1042',
+    question: 'Does quantum entanglement allow faster-than-light communication between two entangled particles?',
+    draftExplanation:
+      'When two particles become entangled, measuring the spin of particle A instantaneously collapses the wavefunction of particle B, even if they are light-years apart. Because the state of particle B changes immediately upon measurement, scientists can encode binary messages in the spin choices of particle A and transmit information faster than the speed of light, violating special relativity.',
+    referenceFacts: 'No-communication theorem in quantum mechanics; Bell test experiments.',
+    subject: 'Physics',
+    level: 'Undergraduate',
+    authorName: 'Prof. Marcus Chen',
+    authorEmail: 'm.chen@veritas-academic.edu',
+    submittedAt: '2026-11-25T07:10:00Z',
+    lastUpdated: '2026-11-25T07:14:00Z',
+    status: 'Processing',
+    version: 1,
+    attachedDocumentIds: ['doc-102'],
+    attachedDocumentNames: ['Griffiths_Introduction_to_Quantum_Mechanics_3rd_Ed.pdf'],
+    currentAgent: 'verify',
+    progressPercent: 52,
+    agents: [
+      {
+        key: 'analyze',
+        order: 1,
+        name: 'Question Analysis',
+        shortLabel: 'Analyze',
+        description:
+          'Understands the science question, extracts key concepts and breaks the draft explanation into individual claims.',
+        status: 'Completed',
+        startedAt: '2026-11-25T07:10:04Z',
+        completedAt: '2026-11-25T07:10:18Z',
+        durationMs: 14000,
+        outputSummary: 'Extracted 3 atomic claims and 4 core concepts (entanglement, wavefunction collapse, no-communication theorem, special relativity).',
+      },
+      {
+        key: 'retrieve',
+        order: 2,
+        name: 'RAG Retrieval',
+        shortLabel: 'Retrieve',
+        description:
+          'Retrieves relevant passages from uploaded academic PDFs and supplementary Tavily web search results.',
+        status: 'Completed',
+        startedAt: '2026-11-25T07:10:19Z',
+        completedAt: '2026-11-25T07:10:41Z',
+        durationMs: 22000,
+        outputSummary: 'Retrieved 4 passages from Griffiths Ch. 12 and 2 peer-reviewed Tavily sources (APS Physics).',
+      },
+      {
+        key: 'verify',
+        order: 3,
+        name: 'Fact Verification',
+        shortLabel: 'Verify',
+        description:
+          'Compares individual claims against retrieved evidence and identifies incorrect or unsupported statements.',
+        status: 'Running',
+        startedAt: '2026-11-25T07:10:42Z',
+        outputSummary: 'Evaluating Claim 2/3 against no-communication theorem evidence...',
+      },
+      {
+        key: 'review',
+        order: 4,
+        name: 'Content Review',
+        shortLabel: 'Review',
+        description: 'Checks scientific accuracy, grammar, clarity and completeness.',
+        status: 'Pending',
+      },
+      {
+        key: 'correct',
+        order: 5,
+        name: 'Correction',
+        shortLabel: 'Correct',
+        description:
+          'Generates an improved explanation and detailed correction notes while preserving the original answer.',
+        status: 'Pending',
+      },
+    ],
+    logs: [
+      {
+        id: 'log-1',
+        timestamp: '2026-11-25T07:10:04Z',
+        agent: 'analyze',
+        level: 'info',
+        message: 'Decomposed draft explanation into 3 verifiable scientific claims.',
+      },
+      {
+        id: 'log-2',
+        timestamp: '2026-11-25T07:10:18Z',
+        agent: 'analyze',
+        level: 'success',
+        message: 'Question Analysis completed in 14.0s.',
+      },
+      {
+        id: 'log-3',
+        timestamp: '2026-11-25T07:10:41Z',
+        agent: 'retrieve',
+        level: 'success',
+        message: 'Indexed 6 high-relevance evidence passages (4 PDF, 2 Tavily).',
+      },
+      {
+        id: 'log-4',
+        timestamp: '2026-11-25T07:10:42Z',
+        agent: 'verify',
+        level: 'info',
+        message: 'Cross-checking claim on FTL encoding against Griffiths Sec 12.2.',
+      },
+    ],
+    decisionHistory: [],
+  },
+  {
+    id: 'REV-2026-1041',
+    question: 'Why does Dijkstra’s algorithm fail when a graph contains negative-weight edges?',
+    draftExplanation:
+      'Dijkstra’s algorithm greedily finalizes the shortest path to each vertex once it is popped from the priority queue. If a negative edge exists later in the graph, it can reduce the total path cost to an already-finalized vertex, which Dijkstra will not revisit.',
+    subject: 'Computer Science',
+    level: 'Undergraduate',
+    authorName: 'Dr. Aris Thorne',
+    authorEmail: 'a.thorne@veritas-academic.edu',
+    submittedAt: '2026-11-25T07:18:00Z',
+    lastUpdated: '2026-11-25T07:19:00Z',
+    status: 'Processing',
+    version: 1,
+    attachedDocumentIds: ['doc-105'],
+    attachedDocumentNames: ['Cormen_CLRS_Graph_Algorithms_Shortest_Paths.pdf'],
+    currentAgent: 'retrieve',
+    progressPercent: 28,
+    agents: [
+      {
+        key: 'analyze',
+        order: 1,
+        name: 'Question Analysis',
+        shortLabel: 'Analyze',
+        description:
+          'Understands the science question, extracts key concepts and breaks the draft explanation into individual claims.',
+        status: 'Completed',
+        startedAt: '2026-11-25T07:18:02Z',
+        completedAt: '2026-11-25T07:18:11Z',
+        durationMs: 9000,
+        outputSummary: 'Extracted 2 claims covering greedy relaxation and priority queue invariant.',
+      },
+      {
+        key: 'retrieve',
+        order: 2,
+        name: 'RAG Retrieval',
+        shortLabel: 'Retrieve',
+        description:
+          'Retrieves relevant passages from uploaded academic PDFs and supplementary Tavily web search results.',
+        status: 'Running',
+        startedAt: '2026-11-25T07:18:12Z',
+        outputSummary: 'Querying CLRS Ch. 24 vector index and supplementary algorithm references...',
+      },
+      {
+        key: 'verify',
+        order: 3,
+        name: 'Fact Verification',
+        shortLabel: 'Verify',
+        description:
+          'Compares individual claims against retrieved evidence and identifies incorrect or unsupported statements.',
+        status: 'Pending',
+      },
+      {
+        key: 'review',
+        order: 4,
+        name: 'Content Review',
+        shortLabel: 'Review',
+        description: 'Checks scientific accuracy, grammar, clarity and completeness.',
+        status: 'Pending',
+      },
+      {
+        key: 'correct',
+        order: 5,
+        name: 'Correction',
+        shortLabel: 'Correct',
+        description:
+          'Generates an improved explanation and detailed correction notes while preserving the original answer.',
+        status: 'Pending',
+      },
+    ],
+    logs: [
+      {
+        id: 'log-1041-1',
+        timestamp: '2026-11-25T07:18:11Z',
+        agent: 'analyze',
+        level: 'success',
+        message: 'Question Analysis completed.',
+      },
+      {
+        id: 'log-1041-2',
+        timestamp: '2026-11-25T07:18:12Z',
+        agent: 'retrieve',
+        level: 'info',
+        message: 'Searching uploaded reference Cormen_CLRS_Graph_Algorithms_Shortest_Paths.pdf.',
+      },
+    ],
+    decisionHistory: [],
+  },
+  {
+    id: 'REV-2026-1040',
+    question: 'How many ATP molecules are produced during complete aerobic respiration of one glucose molecule in eukaryotes?',
+    draftExplanation:
+      'During aerobic cellular respiration, one molecule of glucose undergoes glycolysis in the mitochondria, producing 4 net ATP. It then enters the Krebs cycle and the electron transport chain, where oxygen acts as the final electron acceptor. In total, eukaryotic cells always produce exactly 38 ATP per glucose molecule, and no protons cross the inner mitochondrial membrane during this process.',
+    referenceFacts: 'Lehninger Principles of Biochemistry 8th Ed., Chapter 14 & 19.',
+    subject: 'Biology',
+    level: 'Undergraduate',
+    authorName: 'Dr. Sarah Jenkins',
+    authorEmail: 's.jenkins@veritas-academic.edu',
+    submittedAt: '2026-11-25T06:30:00Z',
+    lastUpdated: '2026-11-25T06:48:00Z',
+    status: 'Awaiting Approval',
+    version: 1,
+    attachedDocumentIds: ['doc-101'],
+    attachedDocumentNames: ['Lehninger_Principles_of_Biochemistry_8th_Ed_Ch14.pdf'],
+    currentAgent: null,
+    progressPercent: 100,
+    agents: [
+      {
+        key: 'analyze',
+        order: 1,
+        name: 'Question Analysis',
+        shortLabel: 'Analyze',
+        description:
+          'Understands the science question, extracts key concepts and breaks the draft explanation into individual claims.',
+        status: 'Completed',
+        startedAt: '2026-11-25T06:30:05Z',
+        completedAt: '2026-11-25T06:30:19Z',
+        durationMs: 14000,
+        outputSummary: 'Decomposed draft into 4 atomic claims across glycolysis, ETC, ATP yield, and chemiosmosis.',
+      },
+      {
+        key: 'retrieve',
+        order: 2,
+        name: 'RAG Retrieval',
+        shortLabel: 'Retrieve',
+        description:
+          'Retrieves relevant passages from uploaded academic PDFs and supplementary Tavily web search results.',
+        status: 'Completed',
+        startedAt: '2026-11-25T06:30:20Z',
+        completedAt: '2026-11-25T06:30:44Z',
+        durationMs: 24000,
+        outputSummary: 'Retrieved 5 passages from Lehninger 8th Ed. and 1 Nature Reviews Molecular Cell Biology paper.',
+      },
+      {
+        key: 'verify',
+        order: 3,
+        name: 'Fact Verification',
+        shortLabel: 'Verify',
+        description:
+          'Compares individual claims against retrieved evidence and identifies incorrect or unsupported statements.',
+        status: 'Completed',
+        startedAt: '2026-11-25T06:30:45Z',
+        completedAt: '2026-11-25T06:31:15Z',
+        durationMs: 30000,
+        outputSummary: '1 Supported, 3 Contradicted, 0 Insufficient Evidence.',
+      },
+      {
+        key: 'review',
+        order: 4,
+        name: 'Content Review',
+        shortLabel: 'Review',
+        description: 'Checks scientific accuracy, grammar, clarity and completeness.',
+        status: 'Completed',
+        startedAt: '2026-11-25T06:31:16Z',
+        completedAt: '2026-11-25T06:31:35Z',
+        durationMs: 19000,
+        outputSummary: 'Flagged 3 factual inaccuracies and 2 missing concepts (cytosolic NADH shuttle cost, chemiosmotic gradient).',
+      },
+      {
+        key: 'correct',
+        order: 5,
+        name: 'Correction',
+        shortLabel: 'Correct',
+        description:
+          'Generates an improved explanation and detailed correction notes while preserving the original answer.',
+        status: 'Completed',
+        startedAt: '2026-11-25T06:31:36Z',
+        completedAt: '2026-11-25T06:32:02Z',
+        durationMs: 26000,
+        outputSummary: 'Generated corrected explanation with 3 itemized correction notes; queued for mandatory human approval.',
+      },
+    ],
+    logs: [
+      {
+        id: 'log-1040-1',
+        timestamp: '2026-11-25T06:30:19Z',
+        agent: 'analyze',
+        level: 'success',
+        message: 'Extracted 4 atomic claims from draft explanation.',
+      },
+      {
+        id: 'log-1040-2',
+        timestamp: '2026-11-25T06:31:15Z',
+        agent: 'verify',
+        level: 'warning',
+        message: 'Contradiction detected on glycolysis location, net ATP yield, and proton translocation.',
+      },
+      {
+        id: 'log-1040-3',
+        timestamp: '2026-11-25T06:32:02Z',
+        agent: 'correct',
+        level: 'success',
+        message: 'Correction complete. Status set to Awaiting Approval.',
+      },
+    ],
+    results: {
+      summary: {
+        totalClaims: 4,
+        supportedClaims: 1,
+        contradictedClaims: 3,
+        insufficientEvidenceClaims: 0,
+        detectedMissingConcepts: 2,
+      },
+      claims: [
+        {
+          id: 'cl-1',
+          claimText: 'Glycolysis occurs in the mitochondria and produces 4 net ATP per glucose molecule.',
+          status: 'Contradicted',
+          explanation:
+            'Glycolysis takes place in the cytosol (not the mitochondria) and yields 2 net ATP (4 gross ATP minus 2 ATP consumed in the preparatory phase).',
+          supportingEvidence:
+            'In all organisms, glycolysis occurs in the cytosol. The payoff phase generates 4 ATP, resulting in a net gain of 2 ATP and 2 NADH per glucose.',
+          citation: 'Lehninger Principles of Biochemistry, 8th Ed., Ch. 14, p. 530',
+          confidenceScore: 0.99,
+        },
+        {
+          id: 'cl-2',
+          claimText: 'Oxygen acts as the final electron acceptor in the electron transport chain.',
+          status: 'Supported',
+          explanation:
+            'Molecular oxygen (O₂) serves as the terminal electron acceptor at Complex IV (cytochrome c oxidase), forming H₂O.',
+          supportingEvidence:
+            'Complex IV transfers electrons from cytochrome c to molecular oxygen, reducing O₂ to H₂O.',
+          citation: 'Lehninger Principles of Biochemistry, 8th Ed., Ch. 19, p. 714',
+          confidenceScore: 0.99,
+        },
+        {
+          id: 'cl-3',
+          claimText: 'Eukaryotic cells always produce exactly 38 ATP per glucose molecule.',
+          status: 'Contradicted',
+          explanation:
+            'Modern bioenergetics establishes a yield of approximately 30–32 ATP per glucose in eukaryotes, depending on the shuttle system (malate-aspartate vs. glycerol 3-phosphate) and proton-to-ATP stoichiometry.',
+          supportingEvidence:
+            'Complete oxidation of glucose yields ~30 to 32 ATP in eukaryotic cells when accounting for ~10 H⁺ pumped per NADH, 4 H⁺ per ATP synthesized, and phosphate/ADP transport costs.',
+          citation: 'Nature Reviews Molecular Cell Biology (2023) / Lehninger Ch. 19, p. 726',
+          confidenceScore: 0.97,
+        },
+        {
+          id: 'cl-4',
+          claimText: 'No protons cross the inner mitochondrial membrane during this process.',
+          status: 'Contradicted',
+          explanation:
+            'Oxidative phosphorylation depends directly on proton translocation across the inner mitochondrial membrane to establish the proton-motive force that drives ATP synthase.',
+          supportingEvidence:
+            'Complexes I, III, and IV pump protons from the mitochondrial matrix into the intermembrane space; protons flow back through F₀F₁ ATP synthase.',
+          citation: 'Lehninger Principles of Biochemistry, 8th Ed., Ch. 19, p. 718',
+          confidenceScore: 0.99,
+        },
+      ],
+      detectedErrors: {
+        incorrectFacts: [
+          'Stated that glycolysis occurs in the mitochondria instead of the cytosol and produces 4 net ATP instead of 2 net ATP.',
+          'Claimed eukaryotic aerobic respiration always yields exactly 38 ATP instead of ~30–32 ATP.',
+          'Claimed no protons cross the inner mitochondrial membrane, contradicting chemiosmotic coupling.',
+        ],
+        unsupportedStatements: [
+          'Absolute phrasing ("always produce exactly 38 ATP") is unsupported by modern P/O stoichiometry.',
+        ],
+        missingConcepts: [
+          'Role of cytosolic NADH shuttle systems (malate-aspartate vs. glycerol-3-phosphate) in varying total ATP yield.',
+          'Chemiosmotic proton-motive force driving F₀F₁ ATP synthase.',
+        ],
+        grammarAndClarity: [
+          'Transitions between glycolysis, the citric acid cycle, and oxidative phosphorylation should specify cellular compartments for clarity.',
+        ],
+      },
+      correctedExplanation:
+        'During aerobic cellular respiration, one molecule of glucose first undergoes glycolysis in the cytosol, yielding 2 net ATP, 2 NADH, and 2 pyruvate molecules. Pyruvate is transported into the mitochondrial matrix and oxidized to acetyl-CoA, entering the citric acid (Krebs) cycle. Electrons from NADH and FADH₂ pass through the electron transport chain on the inner mitochondrial membrane, where oxygen acts as the final electron acceptor to form water. As electrons flow through Complexes I, III, and IV, protons are pumped across the inner mitochondrial membrane into the intermembrane space, creating an electrochemical proton-motive force that drives ATP synthase. Including substrate-level phosphorylation and shuttle costs for cytosolic NADH, complete aerobic respiration in eukaryotic cells produces approximately 30 to 32 ATP molecules per glucose.',
+      highlightedChanges: [
+        {
+          original: 'undergoes glycolysis in the mitochondria, producing 4 net ATP',
+          corrected: 'undergoes glycolysis in the cytosol, yielding 2 net ATP',
+        },
+        {
+          original: 'always produce exactly 38 ATP per glucose molecule',
+          corrected: 'produces approximately 30 to 32 ATP molecules per glucose',
+        },
+        {
+          original: 'no protons cross the inner mitochondrial membrane during this process',
+          corrected: 'protons are pumped across the inner mitochondrial membrane into the intermembrane space, creating an electrochemical proton-motive force that drives ATP synthase',
+        },
+      ],
+      correctionNotes: [
+        {
+          id: 'cn-1',
+          originalStatement: 'undergoes glycolysis in the mitochondria, producing 4 net ATP',
+          identifiedIssue: 'Incorrect cellular compartment and gross vs. net ATP confusion',
+          correctedStatement: 'undergoes glycolysis in the cytosol, yielding 2 net ATP',
+          reason: 'Glycolysis is cytosolic; 2 ATP are invested in the preparatory phase and 4 are generated, leaving 2 net ATP.',
+        },
+        {
+          id: 'cn-2',
+          originalStatement: 'eukaryotic cells always produce exactly 38 ATP per glucose molecule',
+          identifiedIssue: 'Outdated stoichiometric figure',
+          correctedStatement: 'produces approximately 30 to 32 ATP molecules per glucose',
+          reason: 'Modern H⁺/ATP ratios (4 H⁺ per ATP including Pi transport) and shuttle differences yield 30–32 ATP.',
+        },
+        {
+          id: 'cn-3',
+          originalStatement: 'no protons cross the inner mitochondrial membrane during this process',
+          identifiedIssue: 'Direct contradiction of Mitchell chemiosmotic theory',
+          correctedStatement: 'protons are pumped across the inner mitochondrial membrane into the intermembrane space',
+          reason: 'Proton pumping by Complexes I, III, and IV and return flow through ATP synthase are essential for oxidative phosphorylation.',
+        },
+      ],
+      supportingReferences: [
+        {
+          id: 'ref-1',
+          sourceTitle: 'Lehninger Principles of Biochemistry (8th Ed.) — Chapter 14: Glycolysis',
+          sourceType: 'Academic PDF',
+          relevantPassage:
+            'In all organisms, glycolysis occurs in the cytosol. The net equation for glycolysis is Glucose + 2 NAD+ + 2 ADP + 2 Pi -> 2 Pyruvate + 2 NADH + 2 H+ + 2 ATP + 2 H2O.',
+          pageNumber: 530,
+          retrievalDate: '2026-11-25T06:30:32Z',
+          relevanceScore: 0.98,
+        },
+        {
+          id: 'ref-2',
+          sourceTitle: 'ATP Synthase Rotational Catalysis and Proton Motive Force',
+          sourceType: 'Tavily Web Search',
+          relevantPassage:
+            'Oxidative phosphorylation couples electron transport to proton translocation across the inner mitochondrial membrane, yielding ~30–32 ATP per glucose molecule in eukaryotic cells.',
+          sourceUrl: 'https://www.nature.com/articles/s41580-023-00612-x',
+          retrievalDate: '2026-11-25T06:30:40Z',
+          relevanceScore: 0.95,
+        },
+      ],
+    },
+    decisionHistory: [],
+  },
+  {
+    id: 'REV-2026-1039',
+    question: 'What determines whether a chemical reaction is thermodynamically spontaneous at constant temperature and pressure?',
+    draftExplanation:
+      'A chemical reaction is spontaneous whenever it is exothermic (ΔH < 0). Endothermic reactions can never occur spontaneously under constant temperature and pressure because they absorb heat from their surroundings.',
+    subject: 'Chemistry',
+    level: 'Undergraduate',
+    authorName: 'Dr. Priya Nair',
+    authorEmail: 'p.nair@veritas-academic.edu',
+    submittedAt: '2026-11-24T15:00:00Z',
+    lastUpdated: '2026-11-24T15:15:00Z',
+    status: 'Awaiting Approval',
+    version: 1,
+    attachedDocumentIds: ['doc-103'],
+    attachedDocumentNames: ['Atkins_Physical_Chemistry_Thermodynamics_Notes.pdf'],
+    currentAgent: null,
+    progressPercent: 100,
+    agents: createInitialAgents().map((a) => ({
+      ...a,
+      status: 'Completed',
+      startedAt: '2026-11-24T15:01:00Z',
+      completedAt: '2026-11-24T15:03:00Z',
+      durationMs: 18000,
+      outputSummary: `${a.name} completed successfully.`,
+    })),
+    logs: [
+      {
+        id: 'log-1039-1',
+        timestamp: '2026-11-24T15:03:00Z',
+        agent: 'correct',
+        level: 'success',
+        message: 'Generated corrected explanation incorporating Gibbs free energy (ΔG = ΔH - TΔS).',
+      },
+    ],
+    results: {
+      summary: {
+        totalClaims: 2,
+        supportedClaims: 0,
+        contradictedClaims: 2,
+        insufficientEvidenceClaims: 0,
+        detectedMissingConcepts: 2,
+      },
+      claims: [
+        {
+          id: 'cl-1039-1',
+          claimText: 'A chemical reaction is spontaneous whenever it is exothermic (ΔH < 0).',
+          status: 'Contradicted',
+          explanation:
+            'Spontaneity at constant T and P is governed by Gibbs free energy (ΔG = ΔH - TΔS < 0), not enthalpy alone. An exothermic reaction with a large negative ΔS can be non-spontaneous at high temperatures.',
+          supportingEvidence:
+            'At constant temperature and pressure, the criterion for spontaneity is ΔG < 0.',
+          citation: 'Atkins Physical Chemistry Thermodynamics Notes, p. 11',
+          confidenceScore: 0.99,
+        },
+        {
+          id: 'cl-1039-2',
+          claimText: 'Endothermic reactions can never occur spontaneously under constant temperature and pressure.',
+          status: 'Contradicted',
+          explanation:
+            'Endothermic processes (ΔH > 0) are spontaneous whenever TΔS > ΔH, making ΔG < 0 (e.g., dissolution of ammonium nitrate or ice melting above 0 °C).',
+          supportingEvidence:
+            'When ΔH > 0 and ΔS > 0, the reaction becomes spontaneous above T = ΔH / ΔS.',
+          citation: 'MIT OCW 5.60 Thermodynamics & Kinetics',
+          confidenceScore: 0.98,
+        },
+      ],
+      detectedErrors: {
+        incorrectFacts: [
+          'Equated spontaneity solely with exothermicity (ΔH < 0).',
+          'Claimed endothermic reactions can never be spontaneous at constant T and P.',
+        ],
+        unsupportedStatements: [],
+        missingConcepts: [
+          'Gibbs free energy equation ΔG = ΔH - TΔS.',
+          'Entropy change (ΔS) and temperature dependence.',
+        ],
+        grammarAndClarity: ['Clear sentence structure; needs thermodynamic precision.'],
+      },
+      correctedExplanation:
+        'At constant temperature and pressure, thermodynamic spontaneity is determined by the change in Gibbs free energy, ΔG = ΔH - TΔS. A reaction is spontaneous when ΔG < 0. While exothermic reactions (ΔH < 0) often favor spontaneity, they can be non-spontaneous if entropy decreases sufficiently (ΔS < 0) at high temperatures. Conversely, endothermic reactions (ΔH > 0) can occur spontaneously when there is a sufficiently large increase in entropy (ΔS > 0) such that TΔS > ΔH.',
+      highlightedChanges: [
+        {
+          original: 'whenever it is exothermic (ΔH < 0)',
+          corrected: 'when the change in Gibbs free energy is negative (ΔG = ΔH - TΔS < 0)',
+        },
+      ],
+      correctionNotes: [
+        {
+          id: 'cn-1039-1',
+          originalStatement: 'A chemical reaction is spontaneous whenever it is exothermic (ΔH < 0).',
+          identifiedIssue: 'Omitted entropy term (TΔS) in Gibbs free energy criterion',
+          correctedStatement: 'A reaction is spontaneous when ΔG = ΔH - TΔS < 0.',
+          reason: 'Spontaneity at constant T and P depends on both enthalpy and entropy.',
+        },
+        {
+          id: 'cn-1039-2',
+          originalStatement: 'Endothermic reactions can never occur spontaneously',
+          identifiedIssue: 'False universal claim',
+          correctedStatement: 'Endothermic reactions (ΔH > 0) can occur spontaneously when TΔS > ΔH.',
+          reason: 'Entropy-driven endothermic processes are common (e.g., ice melting above 273 K).',
+        },
+      ],
+      supportingReferences: [
+        {
+          id: 'ref-1039-1',
+          sourceTitle: 'Atkins Physical Chemistry — Thermodynamics Notes',
+          sourceType: 'Academic PDF',
+          relevantPassage: 'For a process at constant T and P, ΔG = ΔH - TΔS ≤ 0 is the criterion for spontaneous change.',
+          pageNumber: 11,
+          retrievalDate: '2026-11-24T15:02:00Z',
+          relevanceScore: 0.99,
+        },
+      ],
+    },
+    decisionHistory: [],
+  },
+  {
+    id: 'REV-2026-1038',
+    question: 'How does the ocean carbon sink buffer atmospheric CO₂, and what is ocean acidification?',
+    draftExplanation:
+      'Oceans absorb about a quarter of anthropogenic CO₂ emissions. Dissolved CO₂ reacts with water to form carbonic acid, which dissociates into bicarbonate and hydrogen ions, lowering seawater pH and reducing carbonate ion availability for calcifying organisms.',
+    subject: 'Environmental Science',
+    level: 'Postgraduate',
+    authorName: 'Dr. Elena Vance',
+    authorEmail: 'e.vance@veritas-academic.edu',
+    submittedAt: '2026-11-22T10:15:00Z',
+    lastUpdated: '2026-11-22T14:20:00Z',
+    status: 'Approved',
+    version: 1,
+    attachedDocumentIds: ['doc-104'],
+    attachedDocumentNames: ['IPCC_AR6_Carbon_Cycle_Feedback_Synthesis.pdf'],
+    currentAgent: null,
+    progressPercent: 100,
+    reviewerName: 'Prof. Marcus Chen',
+    approvedAt: '2026-11-22T14:20:00Z',
+    agents: createInitialAgents().map((a) => ({
+      ...a,
+      status: 'Completed',
+      startedAt: '2026-11-22T10:15:05Z',
+      completedAt: '2026-11-22T10:17:00Z',
+      durationMs: 20000,
+      outputSummary: `${a.name} verified against IPCC AR6 synthesis.`,
+    })),
+    logs: [
+      {
+        id: 'log-1038-1',
+        timestamp: '2026-11-22T14:20:00Z',
+        agent: 'system',
+        level: 'success',
+        message: 'Approved for publication by Prof. Marcus Chen.',
+      },
+    ],
+    results: {
+      summary: {
+        totalClaims: 3,
+        supportedClaims: 3,
+        contradictedClaims: 0,
+        insufficientEvidenceClaims: 0,
+        detectedMissingConcepts: 1,
+      },
+      claims: [
+        {
+          id: 'cl-1038-1',
+          claimText: 'Oceans absorb roughly a quarter of anthropogenic CO₂ emissions.',
+          status: 'Supported',
+          explanation: 'IPCC AR6 estimates the ocean sink absorbs ~25–26% of total anthropogenic CO₂ emissions.',
+          supportingEvidence: 'The global ocean has absorbed approximately 26% of cumulative anthropogenic CO₂ emissions.',
+          citation: 'IPCC AR6 Carbon Cycle Synthesis, p. 14',
+          confidenceScore: 0.96,
+        },
+        {
+          id: 'cl-1038-2',
+          claimText: 'Dissolved CO₂ forms carbonic acid, which dissociates into bicarbonate and hydrogen ions.',
+          status: 'Supported',
+          explanation: 'Standard carbonate chemistry equilibrium: CO₂ + H₂O ⇌ H₂CO₃ ⇌ H⁺ + HCO₃⁻.',
+          supportingEvidence: 'Increased aqueous CO₂ shifts equilibrium toward H⁺ and HCO₃⁻.',
+          citation: 'IPCC AR6 Carbon Cycle Synthesis, p. 16',
+          confidenceScore: 0.99,
+        },
+        {
+          id: 'cl-1038-3',
+          claimText: 'This lowers seawater pH and reduces carbonate ion availability for calcifying organisms.',
+          status: 'Supported',
+          explanation: 'Excess H⁺ reacts with CO₃²⁻ to form HCO₃⁻, decreasing aragonite and calcite saturation states.',
+          supportingEvidence: 'Surface ocean pH has declined by ~0.1 units since pre-industrial times, reducing Ω_aragonite.',
+          citation: 'IPCC AR6 Carbon Cycle Synthesis, p. 17',
+          confidenceScore: 0.98,
+        },
+      ],
+      detectedErrors: {
+        incorrectFacts: [],
+        unsupportedStatements: [],
+        missingConcepts: ['Mention of Revelle factor / declining buffer capacity as CO₂ accumulates.'],
+        grammarAndClarity: ['Well-structured; minor expansion on saturation state improves postgraduate rigor.'],
+      },
+      correctedExplanation:
+        'The global ocean absorbs approximately 25–26% of anthropogenic CO₂ emissions, acting as a major climate buffer. When atmospheric CO₂ dissolves in seawater, it reacts with water to form carbonic acid (H₂CO₃), which rapidly dissociates into hydrogen ions (H⁺) and bicarbonate ions (HCO₃⁻). The resulting increase in H⁺ concentration lowers seawater pH—a process termed ocean acidification—and shifts carbonate equilibrium by consuming carbonate ions (CO₃²⁻) to form additional bicarbonate. This reduction in carbonate ion concentration lowers the calcium carbonate saturation state (Ω), impairing shell and skeleton formation in calcifying marine organisms, while the Revelle buffer factor causes ocean uptake efficiency to decline as dissolved inorganic carbon rises.',
+      highlightedChanges: [
+        {
+          original: 'reducing carbonate ion availability for calcifying organisms',
+          corrected: 'lowering the calcium carbonate saturation state (Ω), impairing shell and skeleton formation in calcifying marine organisms, while the Revelle buffer factor causes ocean uptake efficiency to decline',
+        },
+      ],
+      correctionNotes: [
+        {
+          id: 'cn-1038-1',
+          originalStatement: 'reducing carbonate ion availability for calcifying organisms',
+          identifiedIssue: 'Missing postgraduate nuance on saturation state (Ω) and Revelle factor',
+          correctedStatement: 'lowering the calcium carbonate saturation state (Ω)... while the Revelle buffer factor causes ocean uptake efficiency to decline',
+          reason: 'Adds quantitative carbonate chemistry context expected at postgraduate level.',
+        },
+      ],
+      supportingReferences: [
+        {
+          id: 'ref-1038-1',
+          sourceTitle: 'IPCC AR6 Carbon Cycle Feedback Synthesis',
+          sourceType: 'Academic PDF',
+          relevantPassage:
+            'The ocean sink absorbs ~26% of anthropogenic CO₂, reducing surface pH and aragonite saturation state.',
+          pageNumber: 14,
+          retrievalDate: '2026-11-22T10:16:00Z',
+          relevanceScore: 0.98,
+        },
+      ],
+    },
+    decisionHistory: [
+      {
+        decision: 'Approved',
+        reviewerName: 'Prof. Marcus Chen',
+        reviewerEmail: 'm.chen@veritas-academic.edu',
+        timestamp: '2026-11-22T14:20:00Z',
+        comments: 'Scientifically accurate and well-cited.',
+        version: 1,
+      },
+    ],
+  },
+  {
+    id: 'REV-2026-1037',
+    question: 'What is the geometric interpretation of the determinant of a 2×2 matrix?',
+    draftExplanation:
+      'The determinant of a 2×2 matrix represents the signed area scaling factor of the linear transformation defined by the matrix. If the determinant is negative, the transformation reverses orientation; if it is zero, it collapses 2D space onto a line or point.',
+    subject: 'Mathematics',
+    level: 'Undergraduate',
+    authorName: 'Dr. Aris Thorne',
+    authorEmail: 'a.thorne@veritas-academic.edu',
+    submittedAt: '2026-11-19T09:00:00Z',
+    lastUpdated: '2026-11-19T11:45:00Z',
+    status: 'Approved',
+    version: 1,
+    attachedDocumentIds: [],
+    attachedDocumentNames: [],
+    currentAgent: null,
+    progressPercent: 100,
+    reviewerName: 'Dr. Elena Vance',
+    approvedAt: '2026-11-19T11:45:00Z',
+    agents: createInitialAgents().map((a) => ({
+      ...a,
+      status: 'Completed',
+      startedAt: '2026-11-19T09:00:10Z',
+      completedAt: '2026-11-19T09:01:30Z',
+      durationMs: 16000,
+      outputSummary: `${a.name} completed.`,
+    })),
+    logs: [],
+    results: {
+      summary: {
+        totalClaims: 3,
+        supportedClaims: 3,
+        contradictedClaims: 0,
+        insufficientEvidenceClaims: 0,
+        detectedMissingConcepts: 0,
+      },
+      claims: [
+        {
+          id: 'cl-1037-1',
+          claimText: 'The determinant of a 2×2 matrix represents the signed area scaling factor.',
+          status: 'Supported',
+          explanation: 'Accurate geometric definition of det(A) in R².',
+          supportingEvidence: 'The absolute value |det(A)| equals the area of the parallelogram spanned by the column vectors.',
+          citation: 'MIT 18.06 Linear Algebra Reference',
+          confidenceScore: 0.99,
+        },
+      ],
+      detectedErrors: {
+        incorrectFacts: [],
+        unsupportedStatements: [],
+        missingConcepts: [],
+        grammarAndClarity: [],
+      },
+      correctedExplanation:
+        'The determinant of a 2×2 matrix represents the signed area scaling factor of the linear transformation it defines in ℝ². Specifically, |det(A)| gives the area of the parallelogram formed by the transformed unit basis vectors. A negative determinant indicates that the transformation reverses spatial orientation, whereas a determinant of zero means the transformation is singular and collapses 2D space onto a lower-dimensional subspace (a line or the origin).',
+      highlightedChanges: [],
+      correctionNotes: [],
+      supportingReferences: [],
+    },
+    decisionHistory: [
+      {
+        decision: 'Approved',
+        reviewerName: 'Dr. Elena Vance',
+        reviewerEmail: 'e.vance@veritas-academic.edu',
+        timestamp: '2026-11-19T11:45:00Z',
+        version: 1,
+      },
+    ],
+  },
+  {
+    id: 'REV-2026-1036',
+    question: 'How does CRISPR-Cas9 achieve sequence-specific DNA cleavage?',
+    draftExplanation:
+      'CRISPR-Cas9 uses a single guide RNA (sgRNA) to locate a complementary DNA target adjacent to a PAM sequence, and the Cas9 endonuclease creates a double-strand break 3 base pairs upstream of the PAM.',
+    subject: 'Biology',
+    level: 'Postgraduate',
+    authorName: 'Dr. Sarah Jenkins',
+    authorEmail: 's.jenkins@veritas-academic.edu',
+    submittedAt: '2026-11-23T13:10:00Z',
+    lastUpdated: '2026-11-23T16:40:00Z',
+    status: 'Changes Requested',
+    version: 1,
+    attachedDocumentIds: [],
+    attachedDocumentNames: [],
+    currentAgent: null,
+    progressPercent: 100,
+    reviewerName: 'Dr. Elena Vance',
+    reviewerComments:
+      'Please specify the distinct roles of the HNH and RuvC nuclease domains and clarify the 5\'-NGG-3\' PAM requirement for SpCas9.',
+    agents: createInitialAgents().map((a) => ({
+      ...a,
+      status: 'Completed',
+      startedAt: '2026-11-23T13:10:05Z',
+      completedAt: '2026-11-23T13:12:00Z',
+      durationMs: 17000,
+      outputSummary: `${a.name} completed.`,
+    })),
+    logs: [
+      {
+        id: 'log-1036-1',
+        timestamp: '2026-11-23T16:40:00Z',
+        agent: 'system',
+        level: 'warning',
+        message: 'Reviewer requested changes: Specify HNH/RuvC domains and SpCas9 PAM.',
+      },
+    ],
+    results: {
+      summary: {
+        totalClaims: 2,
+        supportedClaims: 2,
+        contradictedClaims: 0,
+        insufficientEvidenceClaims: 0,
+        detectedMissingConcepts: 2,
+      },
+      claims: [
+        {
+          id: 'cl-1036-1',
+          claimText: 'sgRNA directs Cas9 to a target adjacent to a PAM sequence.',
+          status: 'Supported',
+          explanation: 'Verified for Type II CRISPR systems.',
+          supportingEvidence: 'SpCas9 requires a 5\'-NGG-3\' PAM immediately 3\' of the protospacer.',
+          citation: 'Jinek et al., Science (2012)',
+          confidenceScore: 0.99,
+        },
+      ],
+      detectedErrors: {
+        incorrectFacts: [],
+        unsupportedStatements: [],
+        missingConcepts: ['HNH and RuvC catalytic domains', '5\'-NGG-3\' PAM specificity for SpCas9'],
+        grammarAndClarity: [],
+      },
+      correctedExplanation:
+        'CRISPR-Cas9 achieves sequence-specific DNA cleavage using a programmable single guide RNA (sgRNA) complexed with the Cas9 endonuclease. Cas9 first scans double-stranded DNA for a protospacer adjacent motif (PAM)—5\'-NGG-3\' for Streptococcus pyogenes Cas9—before unwinding the adjacent DNA duplex to test complementarity with the 20-nucleotide spacer of the sgRNA. Upon complete R-loop formation, Cas9 undergoes a conformational change activating its two nuclease domains: HNH cleaves the target strand complementary to the sgRNA, and RuvC cleaves the non-target strand, generating a predominantly blunt-ended double-strand break 3 base pairs upstream of the PAM.',
+      highlightedChanges: [],
+      correctionNotes: [],
+      supportingReferences: [],
+    },
+    decisionHistory: [
+      {
+        decision: 'Changes Requested',
+        reviewerName: 'Dr. Elena Vance',
+        reviewerEmail: 'e.vance@veritas-academic.edu',
+        timestamp: '2026-11-23T16:40:00Z',
+        comments:
+          'Please specify the distinct roles of the HNH and RuvC nuclease domains and clarify the 5\'-NGG-3\' PAM requirement for SpCas9.',
+        version: 1,
+      },
+    ],
+  },
+  {
+    id: 'REV-2026-1035',
+    question: 'Can perpetual motion machines of the second kind convert heat from a single reservoir entirely into work?',
+    draftExplanation:
+      'Yes, with frictionless superconducting bearings, a heat engine can extract thermal energy from a single ocean reservoir and convert 100% of it into mechanical work continuously without any other effect.',
+    subject: 'Physics',
+    level: 'School',
+    authorName: 'Guest Contributor',
+    authorEmail: 'guest@veritas-academic.edu',
+    submittedAt: '2026-11-18T11:00:00Z',
+    lastUpdated: '2026-11-18T12:30:00Z',
+    status: 'Rejected',
+    version: 1,
+    attachedDocumentIds: [],
+    attachedDocumentNames: [],
+    currentAgent: null,
+    progressPercent: 100,
+    reviewerName: 'Prof. Marcus Chen',
+    rejectionReason:
+      'Draft fundamentally contradicts the Kelvin-Planck statement of the Second Law of Thermodynamics and appears to be an invalid test submission.',
+    agents: createInitialAgents().map((a) => ({
+      ...a,
+      status: 'Completed',
+      startedAt: '2026-11-18T11:00:10Z',
+      completedAt: '2026-11-18T11:01:40Z',
+      durationMs: 15000,
+      outputSummary: `${a.name} completed.`,
+    })),
+    logs: [
+      {
+        id: 'log-1035-1',
+        timestamp: '2026-11-18T12:30:00Z',
+        agent: 'system',
+        level: 'error',
+        message: 'Submission rejected by Prof. Marcus Chen.',
+      },
+    ],
+    decisionHistory: [
+      {
+        decision: 'Rejected',
+        reviewerName: 'Prof. Marcus Chen',
+        reviewerEmail: 'm.chen@veritas-academic.edu',
+        timestamp: '2026-11-18T12:30:00Z',
+        rejectionReason:
+          'Draft fundamentally contradicts the Kelvin-Planck statement of the Second Law of Thermodynamics and appears to be an invalid test submission.',
+        version: 1,
+      },
+    ],
+  },
+];
+
+export const SEED_PUBLICATIONS: PublicationItem[] = [
+  {
+    id: 'PUB-2026-089',
+    reviewId: 'REV-2026-1038',
+    question: 'How does the ocean carbon sink buffer atmospheric CO₂, and what is ocean acidification?',
+    subject: 'Environmental Science',
+    level: 'Postgraduate',
+    authorName: 'Dr. Elena Vance',
+    reviewerName: 'Prof. Marcus Chen',
+    publishedAt: '2026-11-22T14:20:00Z',
+    approvedAt: '2026-11-22T14:20:00Z',
+    version: 1,
+    verifiedStatus: 'Human Approved & Verified',
+    finalExplanation:
+      'The global ocean absorbs approximately 25–26% of anthropogenic CO₂ emissions, acting as a major climate buffer. When atmospheric CO₂ dissolves in seawater, it reacts with water to form carbonic acid (H₂CO₃), which rapidly dissociates into hydrogen ions (H⁺) and bicarbonate ions (HCO₃⁻). The resulting increase in H⁺ concentration lowers seawater pH—a process termed ocean acidification—and shifts carbonate equilibrium by consuming carbonate ions (CO₃²⁻) to form additional bicarbonate. This reduction in carbonate ion concentration lowers the calcium carbonate saturation state (Ω), impairing shell and skeleton formation in calcifying marine organisms, while the Revelle buffer factor causes ocean uptake efficiency to decline as dissolved inorganic carbon rises.',
+    originalExplanation:
+      'Oceans absorb about a quarter of anthropogenic CO₂ emissions. Dissolved CO₂ reacts with water to form carbonic acid, which dissociates into bicarbonate and hydrogen ions, lowering seawater pH and reducing carbonate ion availability for calcifying organisms.',
+    correctionNotes: SEED_REVIEWS.find((r) => r.id === 'REV-2026-1038')?.results?.correctionNotes || [],
+    supportingReferences:
+      SEED_REVIEWS.find((r) => r.id === 'REV-2026-1038')?.results?.supportingReferences || [],
+    versionHistory: [
+      {
+        version: 1,
+        timestamp: '2026-11-22T14:20:00Z',
+        actor: 'Prof. Marcus Chen',
+        note: 'Approved and published to Academic Library.',
+      },
+    ],
+  },
+  {
+    id: 'PUB-2026-088',
+    reviewId: 'REV-2026-1037',
+    question: 'What is the geometric interpretation of the determinant of a 2×2 matrix?',
+    subject: 'Mathematics',
+    level: 'Undergraduate',
+    authorName: 'Dr. Aris Thorne',
+    reviewerName: 'Dr. Elena Vance',
+    publishedAt: '2026-11-19T11:45:00Z',
+    approvedAt: '2026-11-19T11:45:00Z',
+    version: 1,
+    verifiedStatus: 'Human Approved & Verified',
+    finalExplanation:
+      'The determinant of a 2×2 matrix represents the signed area scaling factor of the linear transformation it defines in ℝ². Specifically, |det(A)| gives the area of the parallelogram formed by the transformed unit basis vectors. A negative determinant indicates that the transformation reverses spatial orientation, whereas a determinant of zero means the transformation is singular and collapses 2D space onto a lower-dimensional subspace (a line or the origin).',
+    originalExplanation:
+      'The determinant of a 2×2 matrix represents the signed area scaling factor of the linear transformation defined by the matrix. If the determinant is negative, the transformation reverses orientation; if it is zero, it collapses 2D space onto a line or point.',
+    correctionNotes: [],
+    supportingReferences: [],
+    versionHistory: [
+      {
+        version: 1,
+        timestamp: '2026-11-19T11:45:00Z',
+        actor: 'Dr. Elena Vance',
+        note: 'Approved and published to Academic Library.',
+      },
+    ],
+  },
+];
+
+export const SEED_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: 'notif-1',
+    title: 'Approval Required: REV-2026-1040',
+    message: 'Aerobic respiration review completed all 5 agents and awaits human approval.',
+    timestamp: '2026-11-25T06:48:00Z',
+    read: false,
+    type: 'warning',
+    link: '/reviewer',
+  },
+  {
+    id: 'notif-2',
+    title: 'Pipeline Running: REV-2026-1042',
+    message: 'Fact Verification agent is currently analyzing quantum entanglement claims.',
+    timestamp: '2026-11-25T07:14:00Z',
+    read: false,
+    type: 'info',
+    link: '/reviews/REV-2026-1042/workflow',
+  },
+  {
+    id: 'notif-3',
+    title: 'Published: PUB-2026-089',
+    message: 'Ocean carbon sink explanation approved by Prof. Marcus Chen.',
+    timestamp: '2026-11-22T14:20:00Z',
+    read: true,
+    type: 'success',
+    link: '/published',
+  },
+];
